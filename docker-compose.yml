@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  weather:
+    build: .
+    container_name: weather-app
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  blackbox:
+    image: prom/blackbox-exporter
+    container_name: blackbox
+    volumes:
+      - ./prometheus/blackbox.yml:/config/blackbox.yml
+    command:
+      - "--config.file=/config/blackbox.yml"
+    ports:
+      - "9115:9115"
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - weather
+      - blackbox
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
